@@ -1,4 +1,5 @@
 mod command;
+mod consts;
 mod error;
 
 use clap::{Arg, ArgMatches, Command};

@@ -4,6 +4,8 @@ use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::process::Command;
+
+use crate::consts;
 pub struct Commander;
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -20,37 +22,39 @@ struct DataItem {
 type ResponseData = Vec<DataItem>;
 
 impl Commander {
-    async fn generate_image(
-        url: &str,
-        api_key: &str,
-        prompt: &str,
-    ) -> Result<ImageResponse, anyhow::Error> {
+    async fn generate_image(prompt: &str) -> Result<ImageResponse, anyhow::Error> {
+        let api_key = env::var("API_KEY")?;
+
         let auth_header = format!("Authorization: Bearer {}", api_key);
 
+        // serde_json macro simplifies serialization of request body
         let data = json!({
             "prompt": prompt,
             "n": 1,
             "size": "256x256"
         });
 
-        let body = to_string(&data).expect("Failed to serialize JSON object ... ");
+        let body = to_string(&data)?;
 
+        // No OpenAI Rust library, use std::process::Command to construct vanilla curl
         let res = Command::new("curl")
-            .arg(url)
+            .arg(consts::IMG_GEN_URL)
             .args(["-H", "Content-Type: application/json"])
             .args(["-H", auth_header.as_str()])
             .args(["-d", &body])
-            .output()
-            .expect("Curl request failed ... ");
+            .output()?;
 
         if res.status.success() {
             println!("Engine returned a healthy response.");
         } else {
             let error = String::from_utf8_lossy(&res.stderr);
-            eprintln!("ERROR!: {}", error);
+            eprintln!("CURL ERROR!: {}", error);
         };
 
-        Ok(serde_json::from_str(&String::from_utf8_lossy(&res.stdout))?)
+        let utf8 = &String::from_utf8_lossy(&res.stdout);
+        let json = serde_json::from_str(&utf8)?;
+
+        Ok(json)
     }
 
     async fn download_image(img_res: ImageResponse, out_name: String) -> Result<(), anyhow::Error> {
@@ -74,9 +78,7 @@ impl Commander {
     }
 
     pub async fn generate_and_download(prompt: &str) -> Result<(), anyhow::Error> {
-        let api_key = env::var("API_KEY").unwrap();
-        let url = "https://api.openai.com/v1/images/generations";
-        let image_res = Self::generate_image(url, &api_key, prompt).await?;
+        let image_res = Self::generate_image(prompt).await?;
         let _ = Self::download_image(image_res, Self::get_out_name(prompt)).await?;
         Ok(())
     }
