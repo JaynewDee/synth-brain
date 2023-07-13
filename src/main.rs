@@ -1,4 +1,5 @@
 mod command;
+mod error;
 
 use clap::{Arg, ArgMatches, Command};
 use command::Commander;
@@ -6,7 +7,7 @@ use command::Commander;
 use dotenv::dotenv;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), anyhow::Error> {
     dotenv().ok();
 
     let cli = Command::new("Synthbrain")
@@ -17,7 +18,9 @@ async fn main() {
         .arg_required_else_help(true)
         .get_matches();
 
-    process_input(cli).await;
+    process_input(cli).await?;
+
+    Ok(())
 }
 
 fn image_command() -> Command {
@@ -32,7 +35,7 @@ fn image_command() -> Command {
         .arg(Arg::new("prompt").required(true))
 }
 
-async fn process_input(cli: ArgMatches) {
+async fn process_input(cli: ArgMatches) -> Result<(), anyhow::Error> {
     match cli.subcommand() {
         Some(("image", val)) => {
             let op = val
@@ -44,10 +47,12 @@ async fn process_input(cli: ArgMatches) {
                 .unwrap()
                 .collect::<Vec<&String>>();
             if op[0] == "generate" {
-                Commander::generate_and_download(prompts[0]).await;
+                Commander::generate_and_download(prompts[0]).await?;
             }
         }
         Some((&_, _)) => println!("Unknown subcommands"),
         None => eprintln!("Failed to match subcommand @ process_input"),
     };
+
+    Ok(())
 }
