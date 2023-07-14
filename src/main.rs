@@ -5,7 +5,6 @@ mod models;
 
 use clap::{Arg, ArgMatches, Command};
 use command::Commander;
-
 use dotenv::dotenv;
 
 #[tokio::main]
@@ -51,31 +50,25 @@ fn text_command() -> Command {
 }
 
 async fn process_input(cli: ArgMatches) -> Result<(), anyhow::Error> {
+    let op_prompt = |val: &ArgMatches| {
+        let op = val.get_one::<String>("operation").unwrap();
+        let prompt = val.get_one::<String>("prompt").unwrap();
+        (op.to_owned(), prompt.to_owned())
+    };
+
     match cli.subcommand() {
         Some(("image", val)) => {
-            let op = val
-                .get_many::<String>("operation")
-                .unwrap()
-                .collect::<Vec<&String>>();
-            let prompts = val
-                .get_many::<String>("prompt")
-                .unwrap()
-                .collect::<Vec<&String>>();
-            if op[0] == "generate" {
-                Commander::generate_and_download(prompts[0]).await?;
+            let (op, prompt) = op_prompt(val);
+
+            if op == "generate" {
+                Commander::generate_and_download(&prompt).await?;
             }
         }
         Some(("text", val)) => {
-            let op = val
-                .get_many::<String>("operation")
-                .unwrap()
-                .collect::<Vec<&String>>();
-            let prompts = val
-                .get_many::<String>("prompt")
-                .unwrap()
-                .collect::<Vec<&String>>();
-            if op[0] == "complete" {
-                Commander::complete_and_write(prompts[0]).await?;
+            let (op, prompt) = op_prompt(val);
+
+            if op == "complete" {
+                Commander::complete_and_write(&prompt).await?;
             }
         }
         Some((&_, _)) => println!("Unknown subcommands"),

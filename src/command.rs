@@ -8,19 +8,25 @@ use std::fs::File;
 use std::io::Write;
 use std::process::Command;
 
+enum Medium {
+    Text,
+    Image,
+}
+
+impl Medium {}
 pub struct Commander;
 
 impl Commander {
-    async fn generate_image(prompt: &str) -> Result<ImageResponse, anyhow::Error> {
+    fn generate_image(prompt: &str) -> Result<ImageResponse, anyhow::Error> {
         let api_key = env::var("API_KEY")?;
 
-        let auth_header = format!("Authorization: Bearer {}", api_key);
+        let auth_header = format!("Authorization: Bearer {api_key}");
 
         // serde_json macro simplifies serialization of request body
         let data = json!({
             "prompt": prompt,
             "n": 1,
-            "size": "256x256"
+            "size": "256x256",
         });
 
         let body = to_string(&data)?;
@@ -67,7 +73,7 @@ impl Commander {
     }
 
     pub async fn generate_and_download(prompt: &str) -> Result<(), anyhow::Error> {
-        let image_res = Self::generate_image(prompt).await?;
+        let image_res = Self::generate_image(prompt)?;
         let _ = Self::download_image(image_res, Self::format_out_name(prompt, ".png")).await?;
         Ok(())
     }
@@ -119,7 +125,7 @@ impl Commander {
             .create(true)
             .open("completion_responses.txt")?;
 
-        file.write_all(format!("user ::: {}", prompt).as_bytes())?;
+        file.write_all(format!("user ::: {}\n", prompt).as_bytes())?;
 
         let templatize = move |role, content| format!(r"{} ::: {}", role, content);
 
