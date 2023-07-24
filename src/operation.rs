@@ -158,6 +158,7 @@ impl Operation {
             .args(["--header", auth_header.as_str()])
             .args(file_header)
             .args(["--form", "model=whisper-1"])
+            .args(["--form", "response_format=text"])
             .output()?;
 
         if res.status.success() {

@@ -2,3 +2,5 @@
 .env
 Cargo.lock
 *.txt
+*.mp3
+*.png
