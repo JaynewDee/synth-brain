@@ -86,13 +86,3 @@ pub async fn process_input(cli: ArgMatches) -> Result<(), anyhow::Error> {
 
     Ok(())
 }
-
-use indicatif::ProgressBar;
-
-pub fn progress_bar() {
-    let pb = ProgressBar::new(1024);
-    for _ in 0..1024 {
-        pb.inc(1);
-    }
-    pb.finish_with_message("done");
-}
