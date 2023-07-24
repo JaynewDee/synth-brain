@@ -13,7 +13,7 @@ pub struct Operation;
 
 impl Operation {
     fn auth() -> Result<String, anyhow::Error> {
-        let api_key = env::var("API_KEY")?;
+        let api_key = env::var("SYNTH_API_KEY")?;
 
         Ok(format!("Authorization: Bearer {api_key}"))
     }
@@ -80,10 +80,7 @@ impl Operation {
     }
 
     fn text_completion(prompt: &str) -> Result<TextResponse, anyhow::Error> {
-        let auth_header = match Self::auth() {
-            Ok(val) => val,
-            Err(_) => "".to_string(),
-        };
+        let auth_header = Self::auth()?;
 
         let messages = vec![MessageItem::new("user".to_string(), prompt.to_string())];
 
@@ -143,34 +140,59 @@ impl Operation {
         Ok(())
     }
 
-    pub fn speech_to_text(filepath: &str) -> Result<(), anyhow::Error> {
-        let auth_header = match Self::auth() {
-            Ok(val) => val,
-            Err(_) => "".to_string(),
-        };
+    fn text_out_name(filepath: &str) -> String {
+        let name = filepath.split('.').collect::<Vec<&str>>();
+        let name_pos = name.len() - 2;
+        name[name_pos]
+            .chars()
+            .chain(".txt".chars())
+            .collect::<String>()
+            .replace('/', "")
+    }
 
-        let file_header = ["--form", &format!("file=@{filepath}")];
+    pub fn speech_to_text(filepath: &str) -> Result<(), anyhow::Error> {
+        let auth_header = Self::auth()?;
+        let file_header = ["--form", &format!("file=@{}", &filepath)];
+
+        let file = File::open(&filepath)?;
+
+        let n_bytes = file.metadata().unwrap().len() / 10 as u64;
+
+        let mut pb = pbr::ProgressBar::new(n_bytes);
+
+        for _ in 0..n_bytes {
+            pb.inc();
+        }
 
         let res = Command::new("curl")
             .args(["--request", "POST"])
             .args(["--url", consts::SPEECH_URL])
-            .args(["--header", "Content-Type: multipart/form-data"])
-            .args(["--header", auth_header.as_str()])
+            .args(["-H", "Content-Type: multipart/form-data"])
+            .args(["-H", auth_header.as_str()])
             .args(file_header)
-            .args(["--form", "model=whisper-1"])
-            .args(["--form", "response_format=text"])
+            .args(["-F", "model=whisper-1"])
+            .args(["-F", "response_format=text"])
             .output()?;
+
+        pb.finish_print("OPERATION COMPLETE");
 
         if res.status.success() {
             println!("Engine returned a healthy response.");
         } else {
             let error = String::from_utf8_lossy(&res.stderr);
-            eprintln!("CURL ERROR!: {}", error);
+            panic!("CURL ERROR!: {}", error);
         };
 
         let translated_text = String::from_utf8_lossy(&res.stdout);
 
-        println!("{}", translated_text);
+        let out_name = Self::text_out_name(filepath);
+
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(out_name)?;
+
+        file.write_all(translated_text.as_bytes())?;
 
         Ok(())
     }
