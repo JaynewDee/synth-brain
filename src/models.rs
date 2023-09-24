@@ -4,7 +4,6 @@ pub type ResponseData = Vec<DataItem>;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ImageResponse {
-    created: i32,
     pub data: ResponseData,
 }
 

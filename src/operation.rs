@@ -14,7 +14,6 @@ pub struct Operation;
 impl Operation {
     fn auth() -> Result<String, anyhow::Error> {
         let api_key = env::var("SYNTH_API_KEY")?;
-
         println!("{:#}", api_key);
         Ok(format!("Authorization: Bearer {api_key}"))
     }
@@ -117,10 +116,7 @@ impl Operation {
         responses: Vec<CompletionChoice>,
         prompt: &str,
     ) -> Result<(), anyhow::Error> {
-        let mut file = std::fs::OpenOptions::new()
-            .append(true)
-            .create(true)
-            .open("completion_responses.txt")?;
+        let mut file = Self::open_with_powers("completion_responses.txt")?;
 
         file.write_all(format!("\nuser ::: {}\n", prompt).as_bytes())?;
 
@@ -130,7 +126,6 @@ impl Operation {
             let template = format!("{role} ::: {content}\n");
             file.write_all(template.as_bytes())?;
         }
-
         Ok(())
     }
 
@@ -149,6 +144,13 @@ impl Operation {
             .chain(".txt".chars())
             .collect::<String>()
             .replace('/', "")
+    }
+
+    fn open_with_powers(out_name: &str) -> Result<File, std::io::Error> {
+        std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(out_name)
     }
 
     pub fn speech_to_text(filepath: &str) -> Result<(), anyhow::Error> {
@@ -188,12 +190,9 @@ impl Operation {
 
         let out_name = Self::text_out_name(filepath);
 
-        let mut file = std::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(out_name)?;
+        let mut file = Self::open_with_powers(&out_name)?;
 
-        file.write_all(translated_text.as_bytes())?;
+        file.write_all(&translated_text.as_bytes())?;
 
         Ok(())
     }
