@@ -11,7 +11,7 @@ use dotenv::dotenv;
 async fn main() -> Result<(), anyhow::Error> {
     dotenv().ok();
 
-    let cli = Cli::matches();
+    let cli = Cli::main();
 
     process_input(cli).await?;
 

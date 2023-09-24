@@ -15,6 +15,7 @@ impl Operation {
     fn auth() -> Result<String, anyhow::Error> {
         let api_key = env::var("SYNTH_API_KEY")?;
 
+        println!("{:#}", api_key);
         Ok(format!("Authorization: Bearer {api_key}"))
     }
 

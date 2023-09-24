@@ -3,7 +3,7 @@ use clap::{Arg, ArgMatches, Command};
 pub struct Cli;
 
 impl Cli {
-    pub fn matches() -> ArgMatches {
+    pub fn main() -> ArgMatches {
         Command::new("Synthbrain")
             .version("0.1.0")
             .about("Command-line AI assistance")
