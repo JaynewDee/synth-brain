@@ -6,7 +6,7 @@ pub enum Error {
     CliUsage(String),
 }
 
-impl std::convert::From<clap::error::Error> for Error {
+impl From<clap::error::Error> for Error {
     fn from(value: clap::error::Error) -> Self {
         Error::CliUsage(value.to_string())
     }

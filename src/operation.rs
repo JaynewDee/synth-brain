@@ -12,12 +12,26 @@ use serde_json::{json, to_string};
 pub struct Operation;
 
 impl Operation {
+    // Usage currently requires name-strict api key in immediate environment...
     fn auth() -> Result<String, anyhow::Error> {
-        let api_key = env::var("SYNTH_API_KEY")?;
-        println!("{:#}", api_key);
-        Ok(format!("Authorization: Bearer {api_key}"))
+        Ok(format!(
+            "Authorization: Bearer {}",
+            env::var("SYNTH_API_KEY")?
+        ))
     }
 
+    fn execute_curl(
+        url: &str,
+        body: &str,
+        auth: &str,
+    ) -> Result<std::io::Result::Output, std::io::Error> {
+        Command::new("curl")
+            .arg(url)
+            .args(["-H", "Content-Type: application/json"])
+            .args(["-H", auth])
+            .args(["-d", &body])
+            .output()
+    }
     fn generate_image(prompt: &str) -> Result<ImageResponse, anyhow::Error> {
         let auth_header = match Self::auth() {
             Ok(val) => val,
@@ -32,19 +46,9 @@ impl Operation {
 
         let body = to_string(&data)?;
 
-        let res = Command::new("curl")
-            .arg(consts::IMG_GEN_URL)
-            .args(["-H", "Content-Type: application/json"])
-            .args(["-H", auth_header.as_str()])
-            .args(["-d", &body])
-            .output()?;
+        let res = Self::execute_curl(consts::IMG_GEN_URL, &body, &auth_header)?;
 
-        if res.status.success() {
-            println!("Engine returned a healthy response.");
-        } else {
-            let error = String::from_utf8_lossy(&res.stderr);
-            eprintln!("CURL ERROR!: {}", error);
-        };
+        Self::handle_response(res);
 
         let utf8 = &String::from_utf8_lossy(&res.stdout);
         let json = serde_json::from_str(&utf8)?;
@@ -92,19 +96,9 @@ impl Operation {
 
         let body = to_string(&data)?;
 
-        let res = Command::new("curl")
-            .arg(consts::TXT_GEN_URL)
-            .args(["-H", "Content-Type: application/json"])
-            .args(["-H", auth_header.as_str()])
-            .args(["-d", &body])
-            .output()?;
+        let res = Self::execute_curl(consts::TXT_GEN_URL, &body, &auth_header)?;
 
-        if res.status.success() {
-            println!("Engine returned a healthy response.");
-        } else {
-            let error = String::from_utf8_lossy(&res.stderr);
-            eprintln!("CURL ERROR!: {}", error);
-        };
+        Self::handleResponse(res);
 
         let from_utf8 = &String::from_utf8_lossy(&res.stdout);
         let json = serde_json::from_str(&from_utf8)?;
@@ -112,6 +106,14 @@ impl Operation {
         Ok(json)
     }
 
+    fn handle_response(res: std::io::Result::Output) {
+        if res.status.success() {
+            println!("Engine returned a healthy response.");
+        } else {
+            let error = String::from_utf8_lossy(&res.stderr);
+            eprintln!("CURL ERROR!: {}", error);
+        };
+    }
     fn write_responses(
         responses: Vec<CompletionChoice>,
         prompt: &str,
@@ -126,6 +128,7 @@ impl Operation {
             let template = format!("{role} ::: {content}\n");
             file.write_all(template.as_bytes())?;
         }
+
         Ok(())
     }
 
